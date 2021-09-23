@@ -1,4 +1,6 @@
-pragma solidity ^0.4.15;
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
 
 contract Splitter {
     // state
@@ -7,13 +9,13 @@ contract Splitter {
     uint256[] partnersWeight;
 
     // Splitter constructs the contract and saves the owner of the contract
-    function Splitter() public {
+    constructor() {
         owner = msg.sender;
     }
 
     // partnerAdd adds a new partner to the list
     // It saves the partner address and the weight of the partner
-    function partnerAdd(address partner, uint256 weight) public onlyOwnerOrPartner  {
+    function partnerAdd(address partner, uint256 weight) public onlyOwner  {
         require(partnerExists(partner) == false);
 
         partners.push(partner);
@@ -21,7 +23,7 @@ contract Splitter {
     }
 
     // partnerExists returns true if a partner exists in the list, false otherwise
-    function partnerExists(address partner) public constant returns (bool) {
+    function partnerExists(address partner) public view returns (bool) {
         for (uint256 i = 0; i < partners.length; i++) {
             if (partner == partners[i]) {
                 return true;
@@ -32,7 +34,7 @@ contract Splitter {
     }
 
     // partnerWeight returns the weight of the partner if it is found in the list
-    function partnerWeight(address partner) public constant returns (uint256) {
+    function partnerWeight(address partner) public view returns (uint256) {
         for (uint256 i = 0; i < partners.length; i++) {
             if (partner == partners[i]) {
                 return uint256(partnersWeight[i]);
@@ -43,9 +45,9 @@ contract Splitter {
     }
 
     // partnersRemove removes all partners
-    function partnersRemove() public onlyOwnerOrPartner {
-        partners.length = 0;
-        partnersWeight.length = 0;
+    function partnersRemove() public onlyOwner {
+        delete partners;
+        delete partnersWeight;
     }
 
     // fallback function is called when receiving funds
@@ -69,38 +71,29 @@ contract Splitter {
     // Contract receives 10 ETH
     // partner A receives 500 / ( 500 + 500 ) * 10 ETH = 5 ETH
     // partner B receives 500 / ( 500 + 500 ) * 10 ETH = 5 ETH
-    function () public payable {
+    receive () external payable {
         uint256 sum;
         for (uint256 i = 0; i < partners.length; i++) {
             sum = sum + partnersWeight[i];
         }
-        Sum(sum);
+        emit Sum(sum);
 
-        for (i = 0; i < partners.length; i++) {
-            address dst = partners[i];
+        for (uint256 i = 0; i < partners.length; i++) {
+            address payable dst = payable(partners[i]);
             uint256 value = msg.value * partnersWeight[i] / sum;
             dst.transfer(value);
 
-            SplitValue(dst, partnersWeight[i], value);
+            emit SplitValue(dst, partnersWeight[i], value);
         }
     }
 
-    // onlyOwnerOrPartner modifier checks if the originator of the transaction is the owner or one of the partners
-    modifier onlyOwnerOrPartner() {
+    // onlyOwne modifier checks if the originator of the transaction is the owner
+    modifier onlyOwner() {
         bool allowed = false;
 
         if (msg.sender == owner) {
             allowed = true;
-        } else { //save some cycles?
-            for (uint256 i = 0; i < partners.length; i++) {
-                if (msg.sender == partners[i]) {
-                    allowed = true;
-                    break; //save some cycles?
-                }
-            }
         }
-
-
         require(allowed);
         _;
     }
